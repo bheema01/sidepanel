@@ -11,6 +11,7 @@ export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isAllowed, setIsAllowed] = useState(true);
   const [pageTitle, setPageTitle] = useState('Loading...');
+  const [showReloadIndicator, setShowReloadIndicator] = useState(false);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -18,12 +19,19 @@ export default function App() {
         const { isAllowed, title } = event.data;
         setIsAllowed(Boolean(isAllowed));
         setPageTitle(title || 'Untitled');
+        
+        // Show reload indicator only when there are no notes
+        if (notes.length === 0) {
+          setShowReloadIndicator(true);
+          // Hide indicator after 2 seconds
+          setTimeout(() => setShowReloadIndicator(false), 2000);
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [notes]);
 
   useEffect(() => {
     window.parent.postMessage(
@@ -61,6 +69,11 @@ export default function App() {
 
   return (
     <div className="container">
+      {showReloadIndicator && (
+        <div className="reload-indicator">
+          App reloaded
+        </div>
+      )}
       <h1 className="page-title">{pageTitle}</h1>
       
       <form onSubmit={handleSubmit}>

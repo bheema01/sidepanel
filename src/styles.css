@@ -66,3 +66,22 @@ body {
   margin: 0;
   font-size: 14px;
 }
+
+.reload-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  text-align: center;
+  animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}

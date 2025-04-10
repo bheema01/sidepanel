@@ -1,0 +1,42 @@
+{
+  "name": "sidepanel-extension",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.26.7",
+    "@babel/preset-react": "^7.22.0",
+    "@babel/preset-typescript": "^7.26.0",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.6",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "babel-loader": "^9.1.2",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "postcss": "^8.4.24",
+    "postcss-preset-mantine": "^1.7.0",
+    "postcss-simple-vars": "^7.0.1",
+    "terser-webpack-plugin": "^5.3.11",
+    "typescript": "^5.8.3",
+    "vite": "^4.4.5",
+    "webpack": "^5.85.0",
+    "webpack-cli": "^5.1.1"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "copy-static": "mkdir -p dist && cp public/* dist/",
+    "build:ext": "npm run clean && npm run copy-static && vite build",
+    "preview": "vite preview --port 5176",
+    "dev": "vite --port 5176",
+    "dev:ext": "npm run clean && npm run copy-static && vite build --watch",
+    "start": "npm run dev"
+  }
+}

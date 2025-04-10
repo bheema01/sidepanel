@@ -1,0 +1,48 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production
+/build
+/dist
+
+# Development
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Mac specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Chrome Extension
+*.crx
+*.pem
+*.zip
+
+# Optional
+.npm
+.eslintcache
+*.tsbuildinfo
+.vercel

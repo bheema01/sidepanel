@@ -87,10 +87,10 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 // Handle extension icon click
 chrome.action.onClicked.addListener((tab) => {
-  console.log('[Background] Icon clicked:', {
+  log.info('Icon clicked', {
     tabId: tab.id,
     url: tab.url,
-    isAllowed: isAllowedUrl(tab.url),
+    isAllowed: isAllowedUrl(tab.url)
   });
 
   chrome.sidePanel.open({ windowId: tab.windowId });
@@ -101,32 +101,10 @@ chrome.sidePanel.setPanelBehavior({
   openPanelOnActionClick: true,
 });
 
-// Handle port connections for debugging
-chrome.runtime.onConnect.addListener((port) => {
-  console.log('[Background] Port connected:', port.name);
-
-  port.onDisconnect.addListener(() => {
-    console.log('[Background] Port disconnected:', port.name);
-  });
-});
-
-// Handle port connections
-chrome.runtime.onConnect.addListener((port) => {
-  log.info('Port connected', { name: port.name });
-
-  port.onDisconnect.addListener(() => {
-    log.info('Port disconnected', { name: port.name });
-  });
-
-  port.onMessage.addListener((message) => {
-    log.info('Message received', { message, from: port.name });
-  });
-});
-
 // Listen for messages from side panel
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.type === 'NOTE_ADDED') {
-    console.log('[Background] 📝 New note added:', {
+    log.info('New note added', {
       note: message.payload,
       tabId: sender.tab?.id,
       timestamp: new Date().toISOString()

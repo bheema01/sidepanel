@@ -85,15 +85,26 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   }
 });
 
+let isPanelReady = false;
+let pendingTabState = null;
+
 // Handle extension icon click
-chrome.action.onClicked.addListener((tab) => {
+chrome.action.onClicked.addListener(async (tab) => {
   log.info('Icon clicked', {
     tabId: tab.id,
     url: tab.url,
     isAllowed: isAllowedUrl(tab.url)
   });
 
-  chrome.sidePanel.open({ windowId: tab.windowId });
+  // Store the state we want to send
+  pendingTabState = {
+    type: 'TAB_STATE_UPDATE',
+    isAllowed: isAllowedUrl(tab.url),
+    url: tab.url,
+    title: tab.title || 'Untitled'
+  };
+
+  await chrome.sidePanel.open({ windowId: tab.windowId });
 });
 
 // Set panel behavior
@@ -102,12 +113,23 @@ chrome.sidePanel.setPanelBehavior({
 });
 
 // Listen for messages from side panel
-chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message.type === 'NOTE_ADDED') {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'PANEL_READY') {
+    log.info('Panel ready received');
+    isPanelReady = true;
+    
+    // Send pending state if exists
+    if (pendingTabState) {
+      sendMessageSafely(pendingTabState);
+      pendingTabState = null;
+    }
+    sendResponse({ received: true });
+  } else if (message.type === 'NOTE_ADDED') {
     log.info('New note added', {
       note: message.payload,
       tabId: sender.tab?.id,
       timestamp: new Date().toISOString()
     });
   }
+  return true;
 });

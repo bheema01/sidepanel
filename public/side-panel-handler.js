@@ -6,34 +6,38 @@ const log = {
 };
 
 const iframe = document.getElementById('app-frame');
-let isFirstLoad = true;
-let hasNotes = false;
+const IFRAME_URL = 'http://localhost:5176';
 
-// Listen for messages from iframe
+// Set iframe source immediately
+iframe.src = IFRAME_URL;
+
+// Send ready message when iframe loads
+iframe.addEventListener('load', () => {
+  log.info('Iframe loaded, sending PANEL_READY');
+  chrome.runtime.sendMessage({ type: 'PANEL_READY' }, (response) => {
+    if (chrome.runtime.lastError) {
+      log.error('Failed to send PANEL_READY:', chrome.runtime.lastError);
+    } else {
+      log.info('PANEL_READY acknowledged:', response);
+    }
+  });
+});
+
+// Listen for messages from React app
 window.addEventListener('message', (event) => {
   if (event.data?.type === 'NOTES_STATE_UPDATE') {
-    hasNotes = event.data.hasNotes;
-    log.info('Notes state updated', { hasNotes });
+    log.info('Notes state updated:', event.data);
   }
 });
 
-// Function to handle tab update
+// Handle tab updates
 function handleTabUpdate(message) {
   if (!iframe?.contentWindow) {
     log.error('Iframe or contentWindow not found');
     return;
   }
 
-  // For first load, set iframe source
-  if (isFirstLoad) {
-    log.info('First load, setting iframe source');
-    iframe.src = 'http://localhost:5176';
-    isFirstLoad = false;
-    return;
-  }
-
-  // For subsequent updates, use postMessage
-  log.info('Forwarding tab update', message);
+  log.info('Forwarding tab update:', message);
   iframe.contentWindow.postMessage({
     type: 'TAB_STATE_UPDATE',
     isAllowed: Boolean(message.isAllowed),
@@ -44,32 +48,9 @@ function handleTabUpdate(message) {
 
 // Listen for state updates from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  log.info('Received message from background', { message, sender });
-  
   if (message.type === 'TAB_STATE_UPDATE') {
     handleTabUpdate(message);
   }
-  
   sendResponse({ received: true });
   return true;
-});
-
-// When iframe loads
-iframe.addEventListener('load', async () => {
-  log.info('Iframe loaded');
-  
-  try {
-    // Get current tab info
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.url) {
-      handleTabUpdate({
-        type: 'TAB_STATE_UPDATE',
-        isAllowed: true, // This will be checked by background script
-        url: tab.url,
-        title: tab.title || 'Untitled'
-      });
-    }
-  } catch (error) {
-    log.error('Failed to get initial tab state', { error });
-  }
 });

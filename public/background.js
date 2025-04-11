@@ -53,7 +53,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     title: tab.title
   });
 
-  if (changeInfo.status === 'complete') {
+  if (changeInfo.status === 'complete' && isPanelReady) {
     sendMessageSafely({
       type: 'TAB_STATE_UPDATE',
       isAllowed: isAllowedUrl(tab.url),
@@ -67,19 +67,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    console.log('[Background] Tab activated:', {
-      tabId: tab.id,
-      url: tab.url,
-      isAllowed: isAllowedUrl(tab.url),
-      title: tab.title
-    });
-
-    sendMessageSafely({
+    const state = {
       type: 'TAB_STATE_UPDATE',
       isAllowed: isAllowedUrl(tab.url),
       url: tab.url,
       title: tab.title || 'Untitled'
-    });
+    };
+
+    log.info('Tab activated:', state);
+
+    if (isPanelReady) {
+      sendMessageSafely(state);
+    } else {
+      pendingTabState = state;
+    }
   } catch (error) {
     log.error('Failed to get tab info', { error });
   }
@@ -87,6 +88,22 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 let isPanelReady = false;
 let pendingTabState = null;
+
+// Add function to get current tab state
+async function getCurrentTabState() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return {
+      type: 'TAB_STATE_UPDATE',
+      isAllowed: isAllowedUrl(tab.url),
+      url: tab.url,
+      title: tab.title || 'Untitled'
+    };
+  } catch (error) {
+    log.error('Failed to get current tab state', { error });
+    return null;
+  }
+}
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
@@ -118,10 +135,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     log.info('Panel ready received');
     isPanelReady = true;
     
-    // Send pending state if exists
+    // Send pending state or get current tab state
     if (pendingTabState) {
       sendMessageSafely(pendingTabState);
       pendingTabState = null;
+    } else {
+      // Immediately get and send current tab state
+      getCurrentTabState().then(state => {
+        if (state) {
+          sendMessageSafely(state);
+        }
+      });
     }
     sendResponse({ received: true });
   } else if (message.type === 'NOTE_ADDED') {

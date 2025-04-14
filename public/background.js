@@ -1,37 +1,26 @@
-// Logging utility with forced console output
-const log = {
-  info: (message, data) => {
-    const logMessage = `[Background] 📘 ${message}`;
-    console.log(logMessage, data || '');
-    // Force log to service worker console
-    if (globalThis.registration) {
-      globalThis.registration.active?.postMessage({
-        type: 'LOG',
-        level: 'info',
-        message: logMessage,
-        data,
-      });
-    }
-  },
-  warn: (message, data) =>
-    console.warn(`[Background] ⚠️ ${message}`, data || ''),
-  error: (message, data) =>
-    console.error(`[Background] 🔴 ${message}`, data || ''),
-};
-
-// Simple initialization log
+// Logging utility removed, using console directly
 console.log('[Background] Starting service worker...');
 
 // Track allowed domains
 const ALLOWED_DOMAINS = ['localhost', 'github.com', 'google.com'];
+
+// Create regex patterns for each domain
+const domainPatterns = ALLOWED_DOMAINS.map(domain => {
+  if (domain === 'localhost') {
+    return new RegExp('^localhost$');
+  }
+  // Escape dots and create pattern that allows subdomains
+  return new RegExp(`^(?:[\\w-]+\\.)*${domain.replace(/\./g, '\\.')}$`);
+});
 
 // Check if URL is allowed
 function isAllowedUrl(url) {
   if (!url) return false;
   try {
     const hostname = new URL(url).hostname;
-    return ALLOWED_DOMAINS.some((domain) => hostname.includes(domain));
+    return domainPatterns.some(pattern => pattern.test(hostname));
   } catch (e) {
+    console.error('[Background] URL parsing error:', e);
     return false;
   }
 }
@@ -74,7 +63,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
       title: tab.title || 'Untitled'
     };
 
-    log.info('Tab activated:', state);
+    console.info('[Background] Tab activated:', state);
 
     if (isPanelReady) {
       sendMessageSafely(state);
@@ -82,7 +71,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
       pendingTabState = state;
     }
   } catch (error) {
-    log.error('Failed to get tab info', { error });
+    console.error('[Background] Failed to get tab info', { error });
   }
 });
 
@@ -100,14 +89,14 @@ async function getCurrentTabState() {
       title: tab.title || 'Untitled'
     };
   } catch (error) {
-    log.error('Failed to get current tab state', { error });
+    console.error('[Background] Failed to get current tab state', { error });
     return null;
   }
 }
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
-  log.info('Icon clicked', {
+  console.info('[Background] Icon clicked', {
     tabId: tab.id,
     url: tab.url,
     isAllowed: isAllowedUrl(tab.url)
@@ -132,7 +121,7 @@ chrome.sidePanel.setPanelBehavior({
 // Listen for messages from side panel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'PANEL_READY') {
-    log.info('Panel ready received');
+    console.info('[Background] Panel ready received');
     isPanelReady = true;
     
     // Send pending state or get current tab state
@@ -149,7 +138,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     sendResponse({ received: true });
   } else if (message.type === 'NOTE_ADDED') {
-    log.info('New note added', {
+    console.info('[Background] New note added', {
       note: message.payload,
       tabId: sender.tab?.id,
       timestamp: new Date().toISOString()

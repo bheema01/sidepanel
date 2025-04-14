@@ -1,0 +1,1 @@
+export const ALLOWED_DOMAINS = ['localhost', 'github.com', 'google.com'];

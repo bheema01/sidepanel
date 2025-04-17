@@ -4,21 +4,19 @@ console.log('[Background] Starting service worker...');
 // Track allowed domains
 const ALLOWED_DOMAINS = ['localhost', 'github.com', 'google.com'];
 
-// Create regex patterns for each domain
-const domainPatterns = ALLOWED_DOMAINS.map(domain => {
-  if (domain === 'localhost') {
-    return new RegExp('^localhost$');
-  }
-  // Escape dots and create pattern that allows subdomains
-  return new RegExp(`^(?:[\\w-]+\\.)*${domain.replace(/\./g, '\\.')}$`);
-});
-
 // Check if URL is allowed
 function isAllowedUrl(url) {
   if (!url) return false;
   try {
     const hostname = new URL(url).hostname;
-    return domainPatterns.some(pattern => pattern.test(hostname));
+    
+    // Special case for localhost
+    if (hostname === 'localhost') return true;
+    
+    // For other domains, check if hostname ends with any allowed domain
+    return ALLOWED_DOMAINS.some(domain => 
+      domain !== 'localhost' && hostname === domain || hostname.endsWith('.' + domain)
+    );
   } catch (e) {
     console.error('[Background] URL parsing error:', e);
     return false;

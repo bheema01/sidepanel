@@ -6,24 +6,41 @@ interface Note {
   timestamp: string;
 }
 
+interface TabState {
+  isAllowed: boolean;
+  title: string;
+  wasVisited: boolean;
+  visitCount?: number;
+}
+
 export default function App() {
   const [inputText, setInputText] = useState('');
   const [notes, setNotes] = useState<Note[]>([]);
   const [isAllowed, setIsAllowed] = useState(true);
   const [pageTitle, setPageTitle] = useState('Loading...');
   const [showReloadIndicator, setShowReloadIndicator] = useState(false);
+  const [wasVisited, setWasVisited] = useState(false);
+  const [visitCount, setVisitCount] = useState<number>(0);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'TAB_STATE_UPDATE') {
-        const { isAllowed, title } = event.data;
+        const { isAllowed, title, wasVisited, visitCount } = event.data;
         setIsAllowed(Boolean(isAllowed));
         setPageTitle(title || 'Untitled');
-        
-        // Show reload indicator only when there are no notes
-        if (notes.length === 0) {
+        setWasVisited(wasVisited);
+        setVisitCount(visitCount || 0);
+
+        // Debug logging in React app
+        console.group('[React] Tab State Update');
+        console.log('Title:', title);
+        console.log('Was visited:', wasVisited ? '✅ Yes' : '❌ No');
+        console.log('Total unique visits:', visitCount);
+        console.groupEnd();
+
+        // Show reload indicator only for new (unvisited) pages with no notes
+        if (notes.length === 0 && !wasVisited) {
           setShowReloadIndicator(true);
-          // Hide indicator after 2 seconds
           setTimeout(() => setShowReloadIndicator(false), 2000);
         }
       }
@@ -74,7 +91,15 @@ export default function App() {
           App reloaded
         </div>
       )}
-      <h1 className="page-title">{pageTitle}</h1>
+      <h1 className="page-title">
+        {pageTitle}
+        {wasVisited && (
+          <div className="visit-info">
+            <span className="visited-badge">Previously Visited</span>
+            <span className="visit-count">Total Visits: {visitCount}</span>
+          </div>
+        )}
+      </h1>
       
       <form onSubmit={handleSubmit}>
         <input

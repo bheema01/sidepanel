@@ -10,7 +10,6 @@ interface TabState {
   isAllowed: boolean;
   title: string;
   wasVisited: boolean;
-  visitCount?: number;
 }
 
 export default function App() {
@@ -20,22 +19,19 @@ export default function App() {
   const [pageTitle, setPageTitle] = useState('Loading...');
   const [showReloadIndicator, setShowReloadIndicator] = useState(false);
   const [wasVisited, setWasVisited] = useState(false);
-  const [visitCount, setVisitCount] = useState<number>(0);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'TAB_STATE_UPDATE') {
-        const { isAllowed, title, wasVisited, visitCount } = event.data;
+        const { isAllowed, title, wasVisited } = event.data;
         setIsAllowed(Boolean(isAllowed));
         setPageTitle(title || 'Untitled');
         setWasVisited(wasVisited);
-        setVisitCount(visitCount || 0);
 
         // Debug logging in React app
         console.group('[React] Tab State Update');
         console.log('Title:', title);
         console.log('Was visited:', wasVisited ? '✅ Yes' : '❌ No');
-        console.log('Total unique visits:', visitCount);
         console.groupEnd();
 
         // Show reload indicator only for new (unvisited) pages with no notes
@@ -62,10 +58,10 @@ export default function App() {
     if (inputText.trim()) {
       const note: Note = {
         text: inputText,
-        timestamp: new Date().toLocaleString()
+        timestamp: new Date().toLocaleString(),
       };
 
-      setNotes(prev => [note, ...prev]);
+      setNotes((prev) => [note, ...prev]);
       window.parent.postMessage({ type: 'NOTE_ADDED', payload: note }, '*');
       setInputText('');
     }
@@ -73,10 +69,10 @@ export default function App() {
 
   if (!isAllowed) {
     return (
-      <div className="container">
-        <div className="error-container">
-          <h2 className="error-title">Unauthorized Domain</h2>
-          <p className="error-message">
+      <div className='container'>
+        <div className='error-container'>
+          <h2 className='error-title'>Unauthorized Domain</h2>
+          <p className='error-message'>
             This extension is not supported on this page
           </p>
         </div>
@@ -85,38 +81,33 @@ export default function App() {
   }
 
   return (
-    <div className="container">
+    <div className='container'>
       {showReloadIndicator && (
-        <div className="reload-indicator">
-          App reloaded
-        </div>
+        <div className='reload-indicator'>App reloaded</div>
       )}
-      <h1 className="page-title">
+      <h1 className='page-title'>
         {pageTitle}
         {wasVisited && (
-          <div className="visit-info">
-            <span className="visited-badge">Previously Visited</span>
-            <span className="visit-count">Total Visits: {visitCount}</span>
-          </div>
+          <span className='visited-badge'>Previously Visited</span>
         )}
       </h1>
-      
+
       <form onSubmit={handleSubmit}>
         <input
-          type="text"
-          className="note-input"
+          type='text'
+          className='note-input'
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Add a note about this page..."
+          placeholder='Add a note about this page...'
         />
       </form>
 
       {notes.length > 0 && (
-        <div className="notes-container">
+        <div className='notes-container'>
           {notes.map((note, index) => (
-            <div key={index} className="note">
-              <p className="note-text">{note.text}</p>
-              <span className="note-timestamp">{note.timestamp}</span>
+            <div key={index} className='note'>
+              <p className='note-text'>{note.text}</p>
+              <span className='note-timestamp'>{note.timestamp}</span>
             </div>
           ))}
         </div>

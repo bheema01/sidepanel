@@ -1,8 +1,10 @@
 // Logging utility
 const log = {
   info: (message, data) => console.log(`[SidePanel] 📘 ${message}`, data || ''),
-  warn: (message, data) => console.warn(`[SidePanel] ⚠️ ${message}`, data || ''),
-  error: (message, data) => console.error(`[SidePanel] 🔴 ${message}`, data || '')
+  warn: (message, data) =>
+    console.warn(`[SidePanel] ⚠️ ${message}`, data || ''),
+  error: (message, data) =>
+    console.error(`[SidePanel] 🔴 ${message}`, data || ''),
 };
 
 const iframe = document.getElementById('app-frame');
@@ -37,22 +39,17 @@ function handleTabUpdate(message) {
     return;
   }
 
-  // Add debug logging for visit status
-  log.info('Tab visit status:', {
-    url: message.url,
-    wasVisited: message.wasVisited ? '✅ Yes' : '❌ No',
-    visitCount: message.visitCount
-  });
-
   log.info('Forwarding tab update:', message);
-  iframe.contentWindow.postMessage({
-    type: 'TAB_STATE_UPDATE',
-    isAllowed: Boolean(message.isAllowed),
-    url: message.url,
-    title: message.title || 'Untitled',
-    wasVisited: message.wasVisited,
-    visitCount: message.visitCount
-  }, '*');
+  iframe.contentWindow.postMessage(
+    {
+      type: 'TAB_STATE_UPDATE',
+      isAllowed: Boolean(message.isAllowed),
+      url: message.url,
+      title: message.title || 'Untitled',
+      wasVisited: message.wasVisited,
+    },
+    '*'
+  );
 }
 
 // Listen for state updates from background script

@@ -33,52 +33,44 @@ function sendMessageSafely(message) {
   });
 }
 
-// Handle tab updates with title
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  console.log('[Background] Tab updated:', {
-    tabId,
-    url: tab.url,
-    isAllowed: isAllowedUrl(tab.url),
-    title: tab.title,
-  });
+// Add at the top with other state variables
+let isPanelReady = false;
+let pendingTabState = null;
 
+// Simplify to just track visited URLs
+const visitedTabs = new Set();
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && isPanelReady) {
+    const wasVisited = visitedTabs.has(tab.url);
+    if (!wasVisited) {
+      visitedTabs.add(tab.url);
+    }
+
     sendMessageSafely({
       type: 'TAB_STATE_UPDATE',
       isAllowed: isAllowedUrl(tab.url),
       url: tab.url,
       title: tab.title || 'Untitled',
+      wasVisited
     });
   }
 });
 
-// Add at the top with other state variables
-let isPanelReady = false;
-let pendingTabState = null;
-const visitedTabs = new Set();
-
-// Update the tab activation listener with better debugging
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     const wasVisited = visitedTabs.has(tab.url);
-
-    // Debug logging for visited state
-    console.group('[Background] Tab Visit Status');
-    console.log('URL:', tab.url);
-    console.log('Previously visited:', wasVisited ? '✅ Yes' : '❌ No');
-    console.log('Total unique visits:', visitedTabs.size);
-    console.groupEnd();
-
-    visitedTabs.add(tab.url);
+    if (!wasVisited) {
+      visitedTabs.add(tab.url);
+    }
 
     const state = {
       type: 'TAB_STATE_UPDATE',
       isAllowed: isAllowedUrl(tab.url),
       url: tab.url,
       title: tab.title || 'Untitled',
-      wasVisited,
-      visitCount: visitedTabs.size,
+      wasVisited
     };
 
     if (isPanelReady) {

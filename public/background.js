@@ -56,6 +56,25 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   }
 });
 
+// Add tab removal handler
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  try {
+    // Get all open tabs to compare against
+    const tabs = await chrome.tabs.query({});
+    const openUrls = new Set(tabs.map(tab => tab.url));
+
+    // Remove URLs that are no longer open in any tab
+    for (const url of visitedTabs) {
+      if (!openUrls.has(url)) {
+        visitedTabs.delete(url);
+        console.log('[Background] Removed visited URL:', url);
+      }
+    }
+  } catch (error) {
+    console.error('[Background] Tab removal cleanup error:', error);
+  }
+});
+
 // Panel management
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true });
 

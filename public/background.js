@@ -97,7 +97,7 @@ chrome.runtime.onConnect.addListener((connectionPort) => {
   port.onDisconnect.addListener(() => {
     port = null;
     isPanelReady = false;
-    console.log('[Background] Port disconnected');
+    console.warn('[Background] Port disconnected');
   });
 });
 

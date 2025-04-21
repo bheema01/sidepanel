@@ -6,18 +6,7 @@
  * - Handles port connection/reconnection
  * - Forwards messages between components
  * - Maintains connection state
- * 
- * @important: Implements exponential backoff for reconnection attempts
  */
-
-// Logging utility
-const log = {
-  info: (message, data) => console.log(`[SidePanel] 📘 ${message}`, data || ''),
-  warn: (message, data) =>
-    console.warn(`[SidePanel] ⚠️ ${message}`, data || ''),
-  error: (message, data) =>
-    console.error(`[SidePanel] 🔴 ${message}`, data || ''),
-};
 
 const iframe = document.getElementById('app-frame');
 const IFRAME_URL = new URL('http://localhost:5176');
@@ -46,7 +35,7 @@ let lastReconnectAttempt = 0;
 function sendConnectionState(isConnected) {
   if (!iframe?.contentWindow) return;
   
-  log.info(`Sending connection state: ${isConnected}`);
+  console.log('[SidePanel] 📘 Sending connection state:', isConnected);
   iframe.contentWindow.postMessage(
     { type: 'CONNECTION_STATE', connected: isConnected },
     IFRAME_URL.origin
@@ -66,14 +55,14 @@ function connect(attempt = 1) {
 
   const now = Date.now();
   if (now - lastReconnectAttempt < MIN_RECONNECT_INTERVAL) {
-    log.warn('Reconnection attempted too soon, skipping');
+    console.warn('[SidePanel] ⚠️ Reconnection attempted too soon, skipping');
     return;
   }
   lastReconnectAttempt = now;
 
   try {
     port = chrome.runtime.connect({ name: 'sidepanel' });
-    log.info('Port connected');
+    console.log('[SidePanel] 📘 Port connected');
 
     // Send connection state immediately
     sendConnectionState(true);
@@ -86,7 +75,7 @@ function connect(attempt = 1) {
 
     port.onDisconnect.addListener(() => {
       port = null;
-      log.warn('Port disconnected');
+      console.warn('[SidePanel] ⚠️ Port disconnected');
       
       // Send disconnection state
       sendConnectionState(false);
@@ -98,7 +87,7 @@ function connect(attempt = 1) {
 
       // Attempt reconnection with exponential backoff
       reconnectTimer = setTimeout(() => {
-        log.info(`Attempting reconnection ${attempt}/${MAX_RECONNECT_ATTEMPTS}`);
+        console.log(`[SidePanel] 📘 Attempting reconnection ${attempt}/${MAX_RECONNECT_ATTEMPTS}`);
         connect(attempt + 1);
       }, RECONNECT_DELAY * attempt);
     });
@@ -106,14 +95,14 @@ function connect(attempt = 1) {
     // Send initial ready message
     port.postMessage({ type: 'PANEL_READY' });
   } catch (error) {
-    log.error('Connection failed:', error);
+    console.error('[SidePanel] 🔴 Connection failed:', error);
     sendConnectionState(false);
   }
 }
 
 // Initialize connection when needed
 iframe.addEventListener('load', () => {
-  log.info('Iframe loaded');
+  console.log('[SidePanel] 📘 Iframe loaded');
   connect();
   
   // Double-check connection state after frame is ready
@@ -125,7 +114,7 @@ iframe.addEventListener('load', () => {
 // Update visibility change handler to reset reconnection
 const handleVisibilityChange = () => {
   if (document.visibilityState === 'visible' && !port) {
-    log.info('Panel visible, reconnecting...');
+    console.log('[SidePanel] 📘 Panel visible, reconnecting...');
     connect(1);
   }
 };

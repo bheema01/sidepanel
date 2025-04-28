@@ -4,9 +4,9 @@
     "version": "1.2",
     "description": "Experimental side panel extension",
     "permissions": [
-        "sidePanel",
         "tabs",
-        "activeTab"
+        "sidePanel",
+        "windows"
     ],
     "host_permissions": [
         "*://*/*"

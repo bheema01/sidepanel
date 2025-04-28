@@ -1,160 +1,106 @@
 /**
- * Background script manages core extension state and tab tracking
- * 
- * Key responsibilities:
- * - Maintains visited tabs history
- * - Handles allowed domains
- * - Manages port connections
- * - Processes tab events
- * 
- * @important: Service worker may restart after periods of inactivity
+ * Background script with simplified window-based state management
  */
 
-// Logging utility removed, using console directly
 console.log('[Background] Starting service worker...');
 
-// Configurable domain whitelist
+// Configuration
 const ALLOWED_DOMAINS = ['localhost', 'github.com', 'google.com'];
+const MAX_VISITED_URLS = 100;
 
-// Prevent memory leaks by limiting visited tabs
-const MAX_VISITED_TABS = 100;
-const visitedTabs = new Set();
+// Simple window state tracker
+const windows = new Map();
 
-/**
- * Adds URL to visited set with size limit enforcement
- * @param {string} url - URL to track
- */
-function addVisitedUrl(url) {
-  if (visitedTabs.size >= MAX_VISITED_TABS) {
-    // Remove oldest entry (first item in set)
-    visitedTabs.delete(visitedTabs.values().next().value);
+class WindowState {
+  constructor(port) {
+    this.port = port;
+    this.urls = new Set();
   }
-  visitedTabs.add(url);
+
+  addVisitedUrl(url) {
+    if (this.urls.size >= MAX_VISITED_URLS) {
+      const firstUrl = this.urls.values().next().value;
+      this.urls.delete(firstUrl);
+    }
+    this.urls.add(url);
+  }
+
+  isUrlVisited(url) {
+    return this.urls.has(url);
+  }
+
+  updateTab(tab) {
+    if (!tab?.url) return;
+
+    const wasVisited = this.isUrlVisited(tab.url);
+    if (!wasVisited) {
+      this.addVisitedUrl(tab.url);
+    }
+
+    this.port.postMessage({
+      type: 'TAB_STATE_UPDATE',
+      url: tab.url,
+      title: tab.title || 'Untitled',
+      isAllowed: isAllowedUrl(tab.url),
+      wasVisited,
+    });
+  }
 }
 
-// Add port management
-let port = null;
-
-// Core functionality
-/**
- * Checks if a URL is allowed based on the domain whitelist
- * @param {string} url - URL to validate
- * @returns {boolean} - True if URL is allowed, false otherwise
- */
+// Domain validation
 function isAllowedUrl(url) {
   if (!url) return false;
   try {
     const hostname = new URL(url).hostname;
-    return hostname === 'localhost' || 
-           ALLOWED_DOMAINS.some(domain => 
-             hostname === domain || hostname.endsWith('.' + domain)
-           );
+    return ALLOWED_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith('.' + domain)
+    );
   } catch (e) {
     console.error('[Background] URL parsing error:', e);
     return false;
   }
 }
 
-// State management
-let isPanelReady = false;
+// Connect handler
+chrome.runtime.onConnect.addListener(async (port) => {
+  if (port.name !== 'sidepanel') return;
 
-// Message handling
-/**
- * Sends tab state to the connected port
- * @param {object} tab - Tab object containing URL and title
- * @param {boolean} wasVisited - Indicates if the tab was previously visited
- */
-function sendTabState(tab, wasVisited = false) {
-  if (!isPanelReady || !port) return;
-  
   try {
-    port.postMessage({
-      type: 'TAB_STATE_UPDATE',
-      isAllowed: isAllowedUrl(tab.url),
-      url: tab.url,
-      title: tab.title || 'Untitled',
-      wasVisited
+    const window = await chrome.windows.getCurrent();
+    const windowId = window.id;
+    console.log('[Background] Panel connected:', windowId);
+
+    const state = new WindowState(port);
+    windows.set(windowId, state);
+
+    // Send initial tab state immediately
+    chrome.tabs.query({ active: true, windowId }, ([tab]) => {
+      if (tab) state.updateTab(tab);
+    });
+
+    port.onDisconnect.addListener(() => {
+      windows.delete(windowId);
+      console.log('[Background] Panel disconnected:', windowId);
     });
   } catch (error) {
-    console.error('[Background] Send error:', error);
-    isPanelReady = false; // Reset on error
-  }
-}
-
-// Handle port connections
-chrome.runtime.onConnect.addListener((connectionPort) => {
-  port = connectionPort;
-  console.log('[Background] Port connected');
-  
-  port.onMessage.addListener((message) => {
-    if (message.type === 'PANEL_READY') {
-      isPanelReady = true;
-      chrome.tabs.query({ active: true, currentWindow: true })
-        .then(([tab]) => tab && sendTabState(tab));
-    }
-  });
-
-  port.onDisconnect.addListener(() => {
-    port = null;
-    isPanelReady = false;
-    console.warn('[Background] Port disconnected');
-  });
-});
-
-// Event Listeners
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && isPanelReady) {
-    const wasVisited = visitedTabs.has(tab.url);
-    if (!wasVisited) addVisitedUrl(tab.url);
-    sendTabState(tab, wasVisited);
+    console.error('[Background] Connection error:', error);
   }
 });
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    const wasVisited = visitedTabs.has(tab.url);
-    if (!wasVisited) addVisitedUrl(tab.url);
-    sendTabState(tab, wasVisited);
-  } catch (error) {
-    console.error('[Background] Tab activation error:', error);
-  }
+// Tab event handlers
+chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+  const state = windows.get(windowId);
+  if (!state) return;
+
+  chrome.tabs.get(tabId).then((tab) => state.updateTab(tab));
 });
 
-// Add tab removal handler
-chrome.tabs.onRemoved.addListener(async (tabId) => {
-  try {
-    // Get all open tabs to compare against
-    const tabs = await chrome.tabs.query({});
-    const openUrls = new Set(tabs.map(tab => tab.url));
+chrome.tabs.onUpdated.addListener((tabId, _, tab) => {
+  const state = windows.get(tab.windowId);
+  if (!state) return;
 
-    // Remove URLs that are no longer open in any tab
-    for (const url of visitedTabs) {
-      if (!openUrls.has(url)) {
-        visitedTabs.delete(url);
-        console.log('[Background] Removed visited URL:', url);
-      }
-    }
-  } catch (error) {
-    console.error('[Background] Tab removal cleanup error:', error);
-  }
+  state.updateTab(tab);
 });
 
-// Panel management
-chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true });
-
-chrome.sidePanel?.onChanged?.addListener(({ enabled }) => {
-  if (!enabled) {
-    visitedTabs.clear();
-    isPanelReady = false;
-  }
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'PANEL_READY') {
-    isPanelReady = true;
-    chrome.tabs.query({ active: true, currentWindow: true })
-      .then(([tab]) => tab && sendTabState(tab));
-  }
-  return true;
-});
+// Enable panel opening on extension icon click
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });

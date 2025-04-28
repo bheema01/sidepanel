@@ -28,13 +28,13 @@ interface ExtensionMessage {
   connected?: boolean;
 }
 
+// Simplify extension state
 interface TabState {
   isAllowed: boolean;
   title: string;
   wasVisited: boolean;
 }
 
-// Remove redundant extension state since we have EXTENSION_ID
 interface ExtensionState {
   connected: boolean;
 }
